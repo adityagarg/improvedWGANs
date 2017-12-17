@@ -61,8 +61,8 @@ class DC_WGAN(object):
 
         with tf.variable_scope('generator', reuse=False if is_train==True else True):
             # Fully connected
-            fc1 = tf.layers.dense(z, 7*7*512)
-            fc1 = tf.reshape(fc1, (-1, 7, 7, 512))
+            fc1 = tf.layers.dense(z, (self.x_dim/4)*(self.x_dim/4)*512)
+            fc1 = tf.reshape(fc1, (-1, (self.x_dim/4), (self.x_dim/4), 512))
             fc1 = tf.maximum(alpha*fc1, fc1)
 
             # Starting Conv Transpose Stack
@@ -115,7 +115,7 @@ class DC_WGAN(object):
 
             # Flatten
 #             flat = tf.reshape(lrelu4, (-1, 7*7*512))
-            flat = tcl.flatten(conv4)
+            flat = tcl.flatten(lrelu4)
 
             # Logits
             logits = tf.layers.dense(flat, 1)
@@ -159,6 +159,10 @@ class DC_WGAN(object):
 
         if not os.path.exists(self.out_dir):
             os.makedirs(self.out_dir)
+
+		if not os.path.exists(self.out_dir+'/model/'):
+			os.makedirs(self.out_dir+'/model/')
+
         
         
         sess = tf.InteractiveSession()
@@ -187,4 +191,9 @@ class DC_WGAN(object):
                             .format(str(i).zfill(3)), bbox_inches='tight')
                 i += 1
                 plt.close(fig)
+
+				saver = tf.train.Saver()
+				cur_model_name = 'model_{}'.format(it)
+				saver.save(sess, self.out_dir+'/model/{}'.format(cur_model_name))
+
                 
