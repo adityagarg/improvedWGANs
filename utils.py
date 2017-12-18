@@ -8,8 +8,7 @@ import matplotlib.gridspec as gridspec
 def plot(samples):
 
     x_dim=samples.shape[1]
-    n_fig=samples.shape[1]
-    size = int(np.sqrt(n_fig))
+    color=samples.shape[3]
     fig = plt.figure(figsize=(4, 4))
     gs = gridspec.GridSpec(4, 4)
     gs.update(wspace=0.05, hspace=0.05)
