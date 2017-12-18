@@ -48,79 +48,72 @@ class DC_WGAN(object):
                 plt.imshow(sample, cmap='Greys_r')
              
         return fig
-        
-    def generator(self, z, is_train=True):
-        """
-        Create the generator network
-        :param z: Input z
-        :param out_channel_dim: The number of channels in the output image
-        :param is_train: Boolean if generator is being used for training
-        :return: The tensor output of the generator
-        """
-        alpha = 0.2
 
-        with tf.variable_scope('generator', reuse=False if is_train==True else True):
-            # Fully connected
-            fc1 = tf.layers.dense(z, int(self.x_dim/4)*int(self.x_dim/4)*512)
-            fc1 = tf.reshape(fc1, (-1, int(self.x_dim/4), int(self.x_dim/4), 512))
-            fc1 = tf.maximum(alpha*fc1, fc1)
-
-            # Starting Conv Transpose Stack
-            deconv2 = tf.layers.conv2d_transpose(fc1, 256, 3, 1, 'SAME')
-            batch_norm2 = tf.layers.batch_normalization(deconv2, training=is_train)
-            lrelu2 = tf.maximum(alpha * batch_norm2, batch_norm2)
-
-            deconv3 = tf.layers.conv2d_transpose(lrelu2, 128, 3, 1, 'SAME')
-            batch_norm3 = tf.layers.batch_normalization(deconv3, training=is_train)
-            lrelu3 = tf.maximum(alpha * batch_norm3, batch_norm3)
-
-            deconv4 = tf.layers.conv2d_transpose(lrelu3, 64, 3, 2, 'SAME')
-            batch_norm4 = tf.layers.batch_normalization(deconv4, training=is_train)
-            lrelu4 = tf.maximum(alpha * batch_norm4, batch_norm4)
-
-            # Logits
-            logits = tf.layers.conv2d_transpose(lrelu4, self.color, 3, 2, 'SAME')
-
-            # Output
-            out = tf.tanh(logits, name='final_gen')
-
-            return out
+    def generator(self, x, isTrain=True):
+        with tf.variable_scope('generator'):
+            fc1 = tc.layers.fully_connected(
+                x, 256,
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                weights_regularizer=tc.layers.l2_regularizer(2.5e-5),
+                activation_fn=tf.identity
+            )
+            fc1 = tc.layers.batch_norm(fc1)
+            fc1 = tf.nn.relu(fc1)
+            fc2 = tc.layers.fully_connected(
+                fc1, int(self.x_dim/4) * int(self.x_dim/4) * 128,
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                weights_regularizer=tc.layers.l2_regularizer(2.5e-5),
+                activation_fn=tf.identity
+            )
+            fc2 = tf.reshape(fc2, tf.stack([tf.shape(x)[0], int(self.x_dim/4), int(self.x_dim/4), 128]))
+            fc2 = tc.layers.batch_norm(fc2)
+            fc2 = tf.nn.relu(fc2)
+            
+            ## The size expands by 2 when we do 4 x 4 kernel with stride 2 x 2
+            conv1 = tc.layers.convolution2d_transpose(
+                fc2, 64, [4, 4], [2, 2],
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                weights_regularizer=tc.layers.l2_regularizer(2.5e-5),
+                activation_fn=tf.identity
+            )
+            conv1 = tc.layers.batch_norm(conv1)
+            conv1 = tf.nn.relu(conv1)
+            
+            ## Another size expansion: we get the right size
+            conv2 = tc.layers.convolution2d_transpose(
+                conv1, self.color, [4, 4], [2, 2],
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                weights_regularizer=tc.layers.l2_regularizer(2.5e-5),
+                activation_fn=tf.sigmoid
+            )
+            conv2 = tf.reshape(conv2, tf.stack([tf.shape(x)[0], self.x_dim*self.x_dim*self.color]))
+            conv2 = tf.reshape(conv2, [tf.shape(x)[0], self.x_dim, self.x_dim, self.color], name='final_gen')
+            return conv2
 
     def discriminator(self, x, isTrain=True, reuse=True):
         with tf.variable_scope('discriminator', reuse=reuse):
-   
-            alpha = 0.2
-    
             
-            # Conv 1
-            conv1 = tf.layers.conv2d(x, 64, 5, 2, 'SAME')
-            lrelu1 = tf.maximum(alpha * conv1, conv1)
-            
-            
-            # Conv 2
-            conv2 = tf.layers.conv2d(lrelu1, 128, 5, 2, 'SAME')
-            batch_norm2 = tf.layers.batch_normalization(conv2, training=True)
-            lrelu2 = tf.maximum(alpha * batch_norm2, batch_norm2)
-
-            
-            # Conv 3
-            conv3 = tf.layers.conv2d(lrelu2, 256, 5, 1, 'SAME')
-            batch_norm3 = tf.layers.batch_normalization(conv3, training=True)
-            lrelu3 = tf.maximum(alpha * batch_norm3, batch_norm3)
-
-            # Conv 4
-            conv4 = tf.layers.conv2d(lrelu3, 512, 5, 1, 'SAME')
-            batch_norm4 = tf.layers.batch_normalization(conv4, training=True)
-            lrelu4 = tf.maximum(alpha * batch_norm4, batch_norm4)
-
-            # Flatten
-#             flat = tf.reshape(lrelu4, (-1, 7*7*512))
-            flat = tcl.flatten(lrelu4)
-
-            # Logits
-            logits = tf.layers.dense(flat, 1)
-
-        return logits
+            conv1 = tc.layers.convolution2d(
+                x, 64, [4, 4], [2, 2],
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            conv1 = leaky_relu(conv1)
+            conv2 = tc.layers.convolution2d(
+                conv1, 128, [4, 4], [2, 2],
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            conv2 = leaky_relu(tc.layers.batch_norm(conv2))
+            conv2 = tcl.flatten(conv2)
+            fc1 = tc.layers.fully_connected(
+                conv2, 1024,
+                weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                activation_fn=tf.identity
+            )
+            fc1 = leaky_relu(tc.layers.batch_norm(fc1))
+            fc2 = tc.layers.fully_connected(fc1, 1, activation_fn=tf.identity)
+            return fc2
         
         
     def training(self):
@@ -157,18 +150,15 @@ class DC_WGAN(object):
         D_solver = tf.train.AdamOptimizer(learning_rate=1e-4, beta1=0.5, 
                                           beta2=0.9).minimize(D_loss, var_list=D_vars)
 
+        
         if not os.path.exists(self.out_dir):
             os.makedirs(self.out_dir)
 
         if not os.path.exists(self.out_dir+'/model/'):
             os.makedirs(self.out_dir+'/model/')
 
-        
-        
         sess = tf.InteractiveSession()
         sess.run(tf.global_variables_initializer())
-
-        history=[]
         
         i = 0
         for epoch in range(0, self.train_epoch):
@@ -193,12 +183,9 @@ class DC_WGAN(object):
                             .format(str(i).zfill(3)), bbox_inches='tight')
                 i += 1
                 plt.close(fig)
+                
+                plt.close(fig)
 
                 saver = tf.train.Saver()
-                cur_model_name = 'model_{}'.format(i)
+                cur_model_name = 'model_{}'.format(it)
                 saver.save(sess, self.out_dir+'/model/{}'.format(cur_model_name))
-
-            history.append([D_loss_curr, G_loss_curr])
-
-
-                

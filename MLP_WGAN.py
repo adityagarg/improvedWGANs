@@ -1,3 +1,13 @@
+import tensorflow as tf
+import tensorflow.contrib as tc
+import tensorflow.contrib.layers as tcl
+from tensorflow.examples.tutorials.mnist import input_data
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import os
+
+
 def leaky_relu(x, th=0.2):
     return tf.maximum(tf.minimum(0.0, th * x), x)    
     
@@ -72,7 +82,7 @@ class MLP_WGAN(object):
                 activation_fn=tf.sigmoid
             )
 
-            fc = tf.reshape(fc, [tf.shape(x)[0], self.x_dim, self.x_dim, self.color])
+            fc = tf.reshape(fc, [tf.shape(x)[0], self.x_dim, self.x_dim, self.color], name='final_gen')
             return fc
 
     def discriminator(self, x, isTrain=True, reuse=True):
@@ -104,9 +114,9 @@ class MLP_WGAN(object):
     def training(self):
         tf.reset_default_graph()
 
-        with tf.name_scope('inputs'):
-            X = tf.placeholder(tf.float32, shape=(None, self.x_dim, self.x_dim, self.color)) ## dataset
-            z = tf.placeholder(tf.float32, shape=(None, self.z_dim)) ## noise passed to generator
+    
+        X = tf.placeholder(tf.float32, shape=(None, self.x_dim, self.x_dim, self.color)) ## dataset
+        z = tf.placeholder(tf.float32, shape=(None, self.z_dim), name='z') ## noise passed to generator
 
         G_sample = self.generator(z)
         print(G_sample.shape)
@@ -165,11 +175,11 @@ class MLP_WGAN(object):
                 batch_z  = np.random.normal(-1.0, 1.0, size=[self.n_fig, self.z_dim]).astype(np.float32)
                 samples = sess.run(G_sample, feed_dict={z: batch_z})
                 fig = self.plot(samples)
-                plt.savefig(out_dir + '/{}.png'
+                plt.savefig(self.out_dir + '/{}.png'
                             .format(str(i).zfill(3)), bbox_inches='tight')
                 i += 1
                 plt.close(fig)
 
                 saver = tf.train.Saver()
-                cur_model_name = 'model_{}'.format(it)
+                cur_model_name = 'model_{}'.format(i)
                 saver.save(sess, self.out_dir+'/model/{}'.format(cur_model_name))
