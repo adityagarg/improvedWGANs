@@ -202,9 +202,10 @@ class DC_WGAN(object):
             if epoch % 1000 == 0:
                 saver = tf.train.Saver()
                 cur_model_name = 'model_{}'.format(i)
-                saver.save(sess, self.out_dir+'/model/{}'.format(str(cur_model_name).zfill(3)))
+                saver.save(sess, self.out_dir+'/model/model_{}'.format(str(i).zfill(3)))
 
-            
+        saver = tf.train.Saver()
+        saver.save(sess, self.out_dir+'/model/model_final')     
 
         return history
 

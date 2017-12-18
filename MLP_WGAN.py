@@ -188,5 +188,7 @@ class MLP_WGAN(object):
                 cur_model_name = 'model_{}'.format(i)
                 saver.save(sess, self.out_dir+'/model/{}'.format(str(cur_model_name).zfill(3)))
 
+        saver = tf.train.Saver()
+        saver.save(sess, self.out_dir+'/model/model_final')
             
         return history
