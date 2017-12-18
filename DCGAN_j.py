@@ -160,6 +160,8 @@ class DC_WGAN(object):
         sess = tf.InteractiveSession()
         sess.run(tf.global_variables_initializer())
         
+        history=[]
+
         i = 0
         for epoch in range(0, self.train_epoch):
                 
@@ -184,8 +186,13 @@ class DC_WGAN(object):
                 i += 1
                 plt.close(fig)
                 
-                plt.close(fig)
+                history.append([D_loss_curr, G_loss_curr])
 
+
+            if epoch % 1000 == 0:
                 saver = tf.train.Saver()
-                cur_model_name = 'model_{}'.format(it)
-                saver.save(sess, self.out_dir+'/model/{}'.format(cur_model_name))
+                cur_model_name = 'model_{}'.format(i)
+                saver.save(sess, self.out_dir+'/model/{}'.format(str(cur_model_name).zfill(3)))
+            
+
+        return history

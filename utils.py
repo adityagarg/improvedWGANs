@@ -36,7 +36,7 @@ def generateSamples(out_dir, z_dim=100):
             os.makedirs(out_dir+'/generated/')
 
     for root, dirs, files in os.walk(out_dir+"/model/"):
-        for filename in files:
+        for filename in sorted(files):
             if os.path.splitext(filename)[1].lower() =='.meta':
                 model=root+os.path.splitext(filename)[0]
                 imageName=os.path.splitext(filename)[0]
@@ -56,6 +56,8 @@ def generateSamples(out_dir, z_dim=100):
 
                     tName2=graph.get_operation_by_name('generator/final_gen').name+':0'
                     gen=graph.get_tensor_by_name(tName2)
+
+                    np.random.seed(42)
 
                     batch_z = np.random.normal(-1.0, 1.0, size=[16, z_dim]).astype(np.float32)
 
